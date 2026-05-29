@@ -6,64 +6,124 @@
     <title>快递驿站管理系统</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
-        /* 简单写一点 CSS 让页面好看些 */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f4f7f6; }
+        #app { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        h1 { color: #333; text-align: center; }
         
-        body { font-family: Arial, sans-serif; padding: 20px; }
-
-        .package-card { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 5px; }
-
-        button { padding: 10px 20px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
-
+        /* 表单样式 */
+        .form-section { background: #eef2f5; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .form-section input { padding: 10px; margin: 5px; border: 1px solid #ccc; border-radius: 4px; width: calc(50% - 34px); }
+        .btn-submit { padding: 10px 20px; background-color: #4CAF50; color: white; border: none; cursor: pointer; border-radius: 4px; font-size: 16px; margin-top: 10px; width: 100%;}
+        .btn-submit:hover { background-color: #45a049; }
+        
+        /* 列表样式 */
+        .package-card { border-left: 5px solid #2196F3; background: #fafafa; padding: 10px 15px; margin-bottom: 10px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .btn-refresh { padding: 8px 15px; background-color: #2196F3; color: white; border: none; cursor: pointer; border-radius: 4px; margin-bottom: 15px;}
     </style>
 </head>
 <body>
     <div id="app">
         <h1>📦 快递驿站管理系统</h1>
         
-        <button @click="fetchPackages">获取最新快递列表</button>
+        <div class="form-section">
+            <h3>📝 新包裹入库</h3>
+            <input type="text" v-model="newPackage.tracking_number" placeholder="快递单号 (必填)">
+            <input type="text" v-model="newPackage.recipient_name" placeholder="收件人姓名 (必填)">
+            <input type="text" v-model="newPackage.phone_number" placeholder="手机号码">
+            <input type="text" v-model="newPackage.pickup_code" placeholder="取件码 (例:A-1-01)">
+            <button class="btn-submit" @click="submitPackage">确认入库</button>
+        </div>
         
         <hr>
 
+        <h3>📋 站内快递列表</h3>
+        <button class="btn-refresh" @click="fetchPackages">手动刷新列表</button>
+        
         <div v-if="packages.length > 0">
             <div class="package-card" v-for="pkg in packages" :key="pkg.id">
-                <h3>单号：{{ pkg.tracking_number }}</h3>
-                <p>收件人：{{ pkg.recipient_name }} | 手机号：{{ pkg.phone_number }}</p>
-                <p>取件码：<strong>{{ pkg.pickup_code }}</strong> | 状态：{{ pkg.status }}</p>
+                <h4 style="margin: 0 0 10px 0;">单号：{{ pkg.tracking_number }}</h4>
+                <p style="margin: 5px 0; font-size: 14px;">收件人：{{ pkg.recipient_name }} | 手机号：{{ pkg.phone_number }}</p>
+                <p style="margin: 5px 0; font-size: 14px;">取件码：<strong style="color: #e91e63;">{{ pkg.pickup_code }}</strong> | 状态：{{ pkg.status }}</p>
+                <p style="margin: 5px 0; font-size: 12px; color: #888;">入库时间：{{ pkg.arrival_time }}</p>
             </div>
         </div>
         <div v-else>
-            <p>目前驿站没有快递包裹哦~</p>
+            <p style="color: #666; text-align: center;">目前驿站没有快递包裹哦~</p>
         </div>
     </div>
 
     <script>
         const { createApp } = Vue
 
-        // 创建 Vue 实例
         createApp({
             data() {
                 return {
-                    // 这个变量相当于前端的“数据库”，用来存放从后端拉取到的数据
-                    packages: [] 
+                    packages: [], 
+                    // 新增：专门用来存放表单输入数据的对象
+                    newPackage: {
+                        tracking_number: '',
+                        recipient_name: '',
+                        phone_number: '',
+                        pickup_code: ''
+                    }
                 }
             },
             methods: {
-                // 定义一个获取快递数据的方法
+                // 查询接口
                 fetchPackages() {
-                    // 发送 GET 请求（因为是获取数据，所以不需要写 headers 和 body）
                     fetch('http://127.0.0.1:5000/api/express')
                         .then(response => response.json())
                         .then(data => {
-                            // 把后端传来的 JSON 数据，赋值给 Vue 的 packages 变量
                             this.packages = data;
-                            console.log("数据拉取成功！", data);
                         })
-                        .catch(error => {
-                            console.error("拉取数据失败，请确保 Flask 服务器已启动", error);
-                        });
+                        .catch(error => console.error("拉取数据失败", error));
+                },
+                
+                // === 新增：提交包裹入库的方法 ===
+                submitPackage() {
+                    // 1. 简单的必填项检查
+                    if (!this.newPackage.tracking_number || !this.newPackage.recipient_name) {
+                        alert("请至少填写快递单号和收件人姓名！");
+                        return;
+                    }
+
+                    // 2. 自动生成入库时间，并打包数据
+                    const payload = {
+                        tracking_number: this.newPackage.tracking_number,
+                        recipient_name: this.newPackage.recipient_name,
+                        phone_number: this.newPackage.phone_number,
+                        pickup_code: this.newPackage.pickup_code,
+                        arrival_time: new Date().toLocaleString() // 获取当前浏览器时间
+                    };
+
+                    // 3. 发送 POST 请求给 Flask 后端
+                    fetch('http://127.0.0.1:5000/api/express', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        // 4. 入库成功的后续操作
+                        alert(data.message); // 弹出成功的提示
+                        this.fetchPackages(); // 🌟 重点：调用查询方法，自动刷新列表展示刚刚入库的数据！
+                        
+                        // 清空输入框，方便录入下一个
+                        this.newPackage = { tracking_number: '', recipient_name: '', phone_number: '', pickup_code: '' };
+                    })
+                    .catch(error => {
+                        console.error("入库失败", error);
+                        alert("入库失败，请检查网络或后端服务器状态");
+                    });
                 }
+            },
+            // mounted 是 Vue 的生命周期钩子，意思是“当页面刚准备好时，自动执行里面的代码”
+            mounted() {
+                this.fetchPackages(); // 页面一打开，就自动去拉取数据，不用再手动点刷新按钮了
             }
-        }).mount('#app') // 让 Vue 接管 id="app" 的区域
+        }).mount('#app')
     </script>
 </body>
 </html>
