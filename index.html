@@ -1,11 +1,65 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>快递驿站管理系统</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        /* 简单写一点 CSS 让页面好看些 */
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .package-card { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 5px; }
+        button { padding: 10px 20px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+    </style>
 </head>
 <body>
-    
+    <div id="app">
+        <h1>📦 快递驿站管理系统</h1>
+        
+        <button @click="fetchPackages">获取最新快递列表</button>
+        
+        <hr>
+
+        <div v-if="packages.length > 0">
+            <div class="package-card" v-for="pkg in packages" :key="pkg.id">
+                <h3>单号：{{ pkg.tracking_number }}</h3>
+                <p>收件人：{{ pkg.recipient_name }} | 手机号：{{ pkg.phone_number }}</p>
+                <p>取件码：<strong>{{ pkg.pickup_code }}</strong> | 状态：{{ pkg.status }}</p>
+            </div>
+        </div>
+        <div v-else>
+            <p>目前驿站没有快递包裹哦~</p>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue
+
+        // 创建 Vue 实例
+        createApp({
+            data() {
+                return {
+                    // 这个变量相当于前端的“数据库”，用来存放从后端拉取到的数据
+                    packages: [] 
+                }
+            },
+            methods: {
+                // 定义一个获取快递数据的方法
+                fetchPackages() {
+                    // 发送 GET 请求（因为是获取数据，所以不需要写 headers 和 body）
+                    fetch('http://127.0.0.1:5000/api/express')
+                        .then(response => response.json())
+                        .then(data => {
+                            // 把后端传来的 JSON 数据，赋值给 Vue 的 packages 变量
+                            this.packages = data;
+                            console.log("数据拉取成功！", data);
+                        })
+                        .catch(error => {
+                            console.error("拉取数据失败，请确保 Flask 服务器已启动", error);
+                        });
+                }
+            }
+        }).mount('#app') // 让 Vue 接管 id="app" 的区域
+    </script>
 </body>
 </html>

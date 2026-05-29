@@ -1,5 +1,4 @@
-from flask import Flask
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 import sqlite3
 
 # 1. 实例化 Flask 应用（也就是召唤一台服务器）
@@ -54,6 +53,36 @@ def get_all_express():
     return jsonify(express_list)
 # --------------------------------
 
+
+# --- 新增：包裹入库接口 ---
+@app.route('/api/express', methods=['POST'])
+def add_express():
+    # 1. 获取前端发来的 JSON 格式数据
+    data = request.get_json()
+    
+    # 2. 从数据中提取各个字段 [cite: 18]
+    tracking_number = data.get('tracking_number')
+    recipient_name = data.get('recipient_name')
+    phone_number = data.get('phone_number')
+    pickup_code = data.get('pickup_code')
+    arrival_time = data.get('arrival_time')
+    status = '待取件'  # 刚入库的包裹，状态默认都是“待取件”
+    
+    # 3. 连接数据库，执行 INSERT 插入语句 [cite: 15]
+    conn = get_db_connection()
+    # 注意：这里的 ? 是占位符，能有效防止 SQL 注入攻击，是保障数据库安全的标准写法
+    conn.execute('''
+        INSERT INTO express (tracking_number, recipient_name, phone_number, pickup_code, status, arrival_time)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (tracking_number, recipient_name, phone_number, pickup_code, status, arrival_time))
+    
+    # 4. 提交保存并关闭连接 [cite: 15]
+    conn.commit()
+    conn.close()
+    
+    # 5. 返回成功的提示信息，201 代表 "Created"（创建成功）
+    return jsonify({"message": "包裹入库成功！", "status": "success"}), 201
+# --------------------------------
 
 
 if __name__ == '__main__':
