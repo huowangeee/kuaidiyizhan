@@ -1,8 +1,10 @@
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 import sqlite3
 
 # 1. 实例化 Flask 应用（也就是召唤一台服务器）
 app = Flask(__name__)
+CORS(app)
 
 def get_db_connection():
     # 创建一个到SQLite数据库的连接，数据库文件名为'station.db'
