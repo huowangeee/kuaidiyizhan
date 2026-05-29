@@ -85,7 +85,30 @@ def add_express():
     # 5. 返回成功的提示信息，201 代表 "Created"（创建成功）
     return jsonify({"message": "包裹入库成功！", "status": "success"}), 201
 # --------------------------------
-
+    # --- 新增：包裹出库（更新状态）接口 ---
+# 注意网址里加上了 <int:id>，它能动态接收前端传来的包裹 ID
+@app.route('/api/express/<int:id>/checkout', methods=['PUT'])
+def checkout_express(id):
+    # 1. 接收前端传来的出库时间
+    data = request.get_json()
+    pickup_time = data.get('pickup_time')
+    
+    # 2. 连接数据库，执行 UPDATE 语句
+    conn = get_db_connection()
+    # 根据包裹的 id，将其状态修改为已签收，并填入签收时间
+    conn.execute('''
+        UPDATE express
+        SET status = '已签收', pickup_time = ?
+        WHERE id = ?
+    ''', (pickup_time, id))
+    
+    # 3. 提交并关闭连接
+    conn.commit()
+    conn.close()
+    
+    # 4. 返回成功提示
+    return jsonify({"message": "包裹出库成功！", "status": "success"})
+# --------------------------------
 
 if __name__ == '__main__':
     app.run(debug=True)
