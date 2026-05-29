@@ -10,15 +10,17 @@
         #app { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
         h1 { color: #333; text-align: center; }
         
-        /* 表单样式 */
         .form-section { background: #eef2f5; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
         .form-section input { padding: 10px; margin: 5px; border: 1px solid #ccc; border-radius: 4px; width: calc(50% - 34px); }
         .btn-submit { padding: 10px 20px; background-color: #4CAF50; color: white; border: none; cursor: pointer; border-radius: 4px; font-size: 16px; margin-top: 10px; width: 100%;}
         .btn-submit:hover { background-color: #45a049; }
         
-        /* 列表样式 */
-        .package-card { border-left: 5px solid #2196F3; background: #fafafa; padding: 10px 15px; margin-bottom: 10px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .package-card { border-left: 5px solid #2196F3; background: #fafafa; padding: 10px 15px; margin-bottom: 10px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: relative;}
         .btn-refresh { padding: 8px 15px; background-color: #2196F3; color: white; border: none; cursor: pointer; border-radius: 4px; margin-bottom: 15px;}
+        
+        /* 新增：出库按钮的样式 */
+        .btn-checkout { position: absolute; right: 15px; top: 15px; padding: 8px 15px; background-color: #2196F3; color: white; border: none; cursor: pointer; border-radius: 4px;}
+        .btn-checkout:hover { background-color: #1e88df; }
     </style>
 </head>
 <body>
@@ -45,6 +47,11 @@
                 <p style="margin: 5px 0; font-size: 14px;">收件人：{{ pkg.recipient_name }} | 手机号：{{ pkg.phone_number }}</p>
                 <p style="margin: 5px 0; font-size: 14px;">取件码：<strong style="color: #e91e63;">{{ pkg.pickup_code }}</strong> | 状态：{{ pkg.status }}</p>
                 <p style="margin: 5px 0; font-size: 12px; color: #888;">入库时间：{{ pkg.arrival_time }}</p>
+                
+                <button v-if="pkg.status === '待取件'" class="btn-checkout" @click="checkoutPackage(pkg.id)">确认出库</button>
+                <p v-if="pkg.status === '已签收'" style="margin: 5px 0; font-size: 12px; color: #4CAF50; font-weight: bold;">
+                    ✅ 出库时间：{{ pkg.pickup_time }}
+                </p>
             </div>
         </div>
         <div v-else>
@@ -59,46 +66,49 @@
             data() {
                 return {
                     packages: [], 
-                    // 新增：专门用来存放表单输入数据的对象
-                    newPackage: {
-                        tracking_number: '',
-                        recipient_name: '',
-                        phone_number: '',
-                        pickup_code: ''
-                    }
+                    newPackage: { tracking_number: '', recipient_name: '', phone_number: '', pickup_code: '' }
                 }
             },
             methods: {
-                // 查询接口
                 fetchPackages() {
                     fetch('http://127.0.0.1:5000/api/express')
                         .then(response => response.json())
-                        .then(data => {
-                            this.packages = data;
-                        })
+                        .then(data => this.packages = data)
                         .catch(error => console.error("拉取数据失败", error));
                 },
-                
-                // === 新增：提交包裹入库的方法 ===
                 submitPackage() {
-                    // 1. 简单的必填项检查
                     if (!this.newPackage.tracking_number || !this.newPackage.recipient_name) {
-                        alert("请至少填写快递单号和收件人姓名！");
-                        return;
+                        alert("请至少填写快递单号和收件人姓名！"); return;
                     }
-
-                    // 2. 自动生成入库时间，并打包数据
                     const payload = {
-                        tracking_number: this.newPackage.tracking_number,
-                        recipient_name: this.newPackage.recipient_name,
-                        phone_number: this.newPackage.phone_number,
-                        pickup_code: this.newPackage.pickup_code,
-                        arrival_time: new Date().toLocaleString() // 获取当前浏览器时间
+                        ...this.newPackage,
+                        arrival_time: new Date().toLocaleString()
                     };
-
-                    // 3. 发送 POST 请求给 Flask 后端
                     fetch('http://127.0.0.1:5000/api/express', {
                         method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        this.fetchPackages();
+                        this.newPackage = { tracking_number: '', recipient_name: '', phone_number: '', pickup_code: '' };
+                    })
+                    .catch(error => alert("入库失败，请检查网络或后端"));
+                },
+
+                // === 新增：包裹出库方法 ===
+                checkoutPackage(id) {
+                    // 加一个简单的确认弹窗，防止误触
+                    if(!confirm("确定要将这个包裹出库吗？")) return;
+
+                    const payload = {
+                        pickup_time: new Date().toLocaleString() // 生成当前时间作为出库时间
+                    };
+
+                    // 注意这里的反引号 ` ，允许我们在字符串里动态插入变量 ${id}
+                    fetch(`http://127.0.0.1:5000/api/express/${id}/checkout`, {
+                        method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json'
                         },
@@ -106,22 +116,17 @@
                     })
                     .then(response => response.json())
                     .then(data => {
-                        // 4. 入库成功的后续操作
-                        alert(data.message); // 弹出成功的提示
-                        this.fetchPackages(); // 🌟 重点：调用查询方法，自动刷新列表展示刚刚入库的数据！
-                        
-                        // 清空输入框，方便录入下一个
-                        this.newPackage = { tracking_number: '', recipient_name: '', phone_number: '', pickup_code: '' };
+                        alert(data.message);
+                        this.fetchPackages(); // 出库成功后，重新拉取最新列表，页面会自动更新
                     })
                     .catch(error => {
-                        console.error("入库失败", error);
-                        alert("入库失败，请检查网络或后端服务器状态");
+                        console.error("出库失败", error);
+                        alert("出库失败，请检查后端状态");
                     });
                 }
             },
-            // mounted 是 Vue 的生命周期钩子，意思是“当页面刚准备好时，自动执行里面的代码”
             mounted() {
-                this.fetchPackages(); // 页面一打开，就自动去拉取数据，不用再手动点刷新按钮了
+                this.fetchPackages();
             }
         }).mount('#app')
     </script>
