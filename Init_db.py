@@ -8,7 +8,8 @@ cursor = conn.cursor()
 
 # 3. 执行建表 SQL 语句
 
-cursor.execute('''
+# 使用 executescript 可以一次性执行多条以分号 ; 隔开的 SQL 语句
+cursor.executescript('''
     -- 创建用户表
     CREATE TABLE IF NOT EXISTS user (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -16,18 +17,18 @@ cursor.execute('''
         password TEXT NOT NULL,
         role TEXT NOT NULL
     );
+    
     -- 创建快递信息表
     CREATE TABLE IF NOT EXISTS express (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,             
-    tracking_number TEXT NOT NULL,                            
-    recipient_name TEXT NOT NULL,                             
-    phone_number TEXT NOT NULL,                                  
-    pickup_code TEXT NOT NULL,                                   
-    status TEXT NOT NULL,                                             
-    arrival_time TEXT,                                                   
-    pickup_time TEXT                                                      
-);
-
+        id INTEGER PRIMARY KEY AUTOINCREMENT,             
+        tracking_number TEXT NOT NULL,                            
+        recipient_name TEXT NOT NULL,                             
+        phone_number TEXT NOT NULL,                                  
+        pickup_code TEXT NOT NULL,                                   
+        status TEXT NOT NULL,                                             
+        arrival_time TEXT,                                                   
+        pickup_time TEXT                                                      
+    );
 ''')
 # 4. 提交保存并关闭连接
 conn.commit()
