@@ -68,10 +68,10 @@
 // createApp是Vue 3.x中用于创建Vue应用实例的函数
         const { createApp } = Vue
 
-        createApp({
-            data() {
-                return {
-                    packages: [], 
+        createApp({  // 创建Vue应用实例
+            data() {  // 定义数据函数
+                return {  // 返回数据对象
+                    packages: [],   // 包裹列表数组，用于存储所有包裹信息
                     newPackage: { tracking_number: '', recipient_name: '', phone_number: '', pickup_code: '' },
                     searchQuery: '' // 新增：用于存储搜索框输入的关键词
                 }
@@ -79,6 +79,7 @@
             // 新增：计算属性，用于实时过滤包裹列表
             computed: {
                 filteredPackages() {
+                    // 使用 trim() 方法去除搜索字符串两端的空白字符，并将字符串转换为小写形式
                     const query = this.searchQuery.trim().toLowerCase();
                     if (!query) {
                         return this.packages; // 如果搜索框为空，返回所有包裹
