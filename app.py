@@ -127,5 +127,36 @@ def delete_express(id):
     return jsonify({"message": "包裹已永久删除！", "status": "success"})
 # --------------------------------
 
+# --- 新增：用户登录接口 ---
+@app.route('/api/login', methods=['POST'])
+def login():
+    # 1. 接收前端传来的账号密码
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    
+    # 2. 查询数据库进行比对
+    conn = get_db_connection()
+    # 查找是否有匹配的账号和密码
+    user = conn.execute('SELECT * FROM user WHERE username = ? AND password = ?', (username, password)).fetchone()
+    conn.close()
+    
+    # 3. 根据比对结果返回响应
+    if user:
+        # 如果找到了，说明账号密码正确
+        return jsonify({
+            "status": "success", 
+            "message": "登录成功！",
+            "user": {
+                "username": user['username'],
+                "role": user['role']
+            }
+        })
+    else:
+        # 如果没找到，说明账号或密码错误
+        # 401 代表 Unauthorized (未授权)
+        return jsonify({"status": "error", "message": "账号或密码错误！"}), 401
+# --------------------------------
+
 if __name__ == '__main__':
     app.run(debug=True)

@@ -32,11 +32,38 @@
         .btn-checkout:hover { background-color: #1e88df; }
         .btn-delete { padding: 8px 15px; background-color: #f44336; color: white; border: none; cursor: pointer; border-radius: 4px; margin-left: 10px;}
         .btn-delete:hover { background-color: #d32f2f; }
+        
+        /* 新增：登录界面的样式 */
+        .login-container { max-width: 400px; margin: 100px auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: center; }
+        .login-container input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .login-container button { width: 100%; padding: 10px; background-color: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 10px; }
+        .login-container button:hover { background-color: #1e88df; }
+        
+        /* 顶部欢迎栏 */
+        .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .header-bar h1 { margin: 0; }
+        .btn-logout { padding: 5px 10px; background-color: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 15px;}
     </style>
 </head>
 <body>
     <div id="app">
-        <h1>📦 快递驿站管理系统</h1>
+        <!-- 新增：未登录时显示登录表单 -->
+        <div class="login-container" v-if="!isLoggedIn">
+            <h2>🔐 快递驿站系统登录</h2>
+            <input type="text" v-model="loginForm.username" placeholder="请输入用户名 (默认: admin)">
+            <input type="password" v-model="loginForm.password" placeholder="请输入密码 (默认: 123456)" @keyup.enter="handleLogin">
+            <button @click="handleLogin">登录</button>
+        </div>
+
+        <!-- 修改：已登录时才显示业务系统 -->
+        <div v-else>
+            <div class="header-bar">
+                <h1>📦 快递驿站管理系统</h1>
+                <div style="font-size: 14px; color: #555;">
+                    <span>欢迎您，<strong>{{ currentUser?.username }}</strong></span>
+                    <button class="btn-logout" @click="handleLogout">退出登录</button>
+                </div>
+            </div>
         
         <!-- 新增：数据统计面板 (Dashboard) -->
         <div class="dashboard">
@@ -92,16 +119,21 @@
         <div v-else>
             <p style="color: #666; text-align: center;">没有找到对应的快递包裹哦~</p>
         </div>
+        
+        </div> <!-- v-else 结束标签 -->
     </div>
 
     <script>
-// 从Vue库中解构出createApp函数
-// createApp是Vue 3.x中用于创建Vue应用实例的函数
         const { createApp } = Vue
 
-        createApp({  // 创建Vue应用实例
-            data() {  // 定义数据函数
-                return {  // 返回数据对象
+        createApp({
+            data() {
+                return {
+                    // 新增：登录状态相关
+                    isLoggedIn: false,
+                    currentUser: null,
+                    loginForm: { username: '', password: '' },
+                    
                     packages: [],   // 包裹列表数组，用于存储所有包裹信息
                     newPackage: { tracking_number: '', recipient_name: '', phone_number: '', pickup_code: '' },
                     searchQuery: '' // 新增：用于存储搜索框输入的关键词
@@ -139,6 +171,54 @@
                 }
             },
             methods: {
+                // === 新增：登录与退出逻辑 ===
+                handleLogin() {
+                    if (!this.loginForm.username || !this.loginForm.password) {
+                        alert("请输入用户名和密码！");
+                        return;
+                    }
+                    
+                    // 使用fetch API发送POST请求到登录接口
+                    fetch('http://127.0.0.1:5000/api/login', {
+                        method: 'POST',        // 指定请求方法为POST
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.loginForm)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // 登录成功
+                            this.isLoggedIn = true;
+                            this.currentUser = data.user;
+                            
+                            // 将状态存入浏览器本地存储 (localStorage)，刷新网页不会丢失
+                            localStorage.setItem('station_isLoggedIn', 'true');
+                            localStorage.setItem('station_currentUser', JSON.stringify(data.user));
+                            
+                            // 登录成功后，主动拉取包裹列表
+                            this.fetchPackages();
+                        } else {
+                            // 账号密码错误
+                            alert(data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error("登录请求失败", error);
+                        alert("无法连接到服务器，请检查后端是否已启动！");
+                    });
+                },
+                
+                handleLogout() {
+                    // 清空状态
+                    this.isLoggedIn = false;
+                    this.currentUser = null;
+                    this.packages = [];
+                    // 清除本地缓存
+                    localStorage.removeItem('station_isLoggedIn');
+                    localStorage.removeItem('station_currentUser');
+                },
+                // =========================
+
                 fetchPackages() {
                     fetch('http://127.0.0.1:5000/api/express')
                         .then(response => response.json())
@@ -215,7 +295,15 @@
                 }
             },
             mounted() {
-                this.fetchPackages();
+                // 修改：页面一加载时，先检查浏览器里有没有存过登录状态
+                if (localStorage.getItem('station_isLoggedIn') === 'true') {
+                    // 恢复登录状态
+                    this.isLoggedIn = true;
+                    this.currentUser = JSON.parse(localStorage.getItem('station_currentUser'));
+                    // 已登录，主动去拉取一次包裹列表
+                    this.fetchPackages();
+                }
+                // (如果没登录，就什么都不拉取，安静地展示登录界面)
             }
         }).mount('#app')
     </script>
