@@ -10,6 +10,14 @@
         #app { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
         h1 { color: #333; text-align: center; }
         
+        /* 新增：数据统计面板的样式 */
+        .dashboard { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .stat-card { background: #fff; border-radius: 8px; padding: 15px; width: 30%; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border-top: 4px solid #4CAF50; }
+        .stat-card h2 { margin: 0; font-size: 28px; color: #333; }
+        .stat-card p { margin: 5px 0 0 0; color: #666; font-size: 14px; font-weight: bold; }
+        .stat-pending { border-top-color: #FF9800; }
+        .stat-total { border-top-color: #2196F3; }
+        
         .form-section { background: #eef2f5; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
         .form-section input { padding: 10px; margin: 5px; border: 1px solid #ccc; border-radius: 4px; width: calc(50% - 34px); }
         .btn-submit { padding: 10px 20px; background-color: #4CAF50; color: white; border: none; cursor: pointer; border-radius: 4px; font-size: 16px; margin-top: 10px; width: 100%;}
@@ -29,6 +37,22 @@
 <body>
     <div id="app">
         <h1>📦 快递驿站管理系统</h1>
+        
+        <!-- 新增：数据统计面板 (Dashboard) -->
+        <div class="dashboard">
+            <div class="stat-card stat-total">
+                <h2>{{ totalPackages }}</h2>
+                <p>📦 累计总单量</p>
+            </div>
+            <div class="stat-card stat-pending">
+                <h2 style="color: #FF9800;">{{ pendingPackages }}</h2>
+                <p>⏳ 当前待取件</p>
+            </div>
+            <div class="stat-card">
+                <h2 style="color: #4CAF50;">{{ pickedPackages }}</h2>
+                <p>✅ 累计已签收</p>
+            </div>
+        </div>
         
         <div class="form-section">
             <h3>📝 新包裹入库</h3>
@@ -83,8 +107,22 @@
                     searchQuery: '' // 新增：用于存储搜索框输入的关键词
                 }
             },
-            // 新增：计算属性，用于实时过滤包裹列表
+            // 新增：计算属性，用于实时过滤包裹列表和计算统计数据
             computed: {
+                // 1. 计算总单量
+                totalPackages() {
+                    return this.packages.length;
+                },
+                // 2. 计算待取件数量
+                pendingPackages() {
+                    return this.packages.filter(pkg => pkg.status === '待取件').length;
+                },
+                // 3. 计算已签收数量
+                pickedPackages() {
+                    return this.packages.filter(pkg => pkg.status === '已签收').length;
+                },
+                
+                // 4. 原有的列表搜索过滤逻辑
                 filteredPackages() {
                     // 使用 trim() 方法去除搜索字符串两端的空白字符，并将字符串转换为小写形式
                     const query = this.searchQuery.trim().toLowerCase();
