@@ -54,7 +54,7 @@
         .main-content { flex: 1; padding: 30px 40px; overflow-y: auto; }
         .tab-title { margin-top: 0; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid rgba(0,0,0,0.05); color: #333; }
 
-        /* 登录界面的全屏外层包装，用于绝对居中 */
+        /* 登录界面的全屏外层包装，用于绝对居中及背景图 */
         .login-wrapper {
             position: fixed;
             top: 0;
@@ -64,6 +64,12 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            background-image: 
+                linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.55)), 
+                url('./image/fbjb.png');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
         }
         h1 { color: #333; text-align: center; }
         
