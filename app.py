@@ -110,5 +110,22 @@ def checkout_express(id):
     return jsonify({"message": "包裹出库成功！", "status": "success"})
 # --------------------------------
 
+# --- 新增：包裹删除接口 ---
+@app.route('/api/express/<int:id>', methods=['DELETE'])
+def delete_express(id):
+    # 1. 获取数据库连接
+    conn = get_db_connection()
+    
+    # 2. 执行 DELETE 语句，根据 id 从数据库中彻底删除该条记录
+    conn.execute('DELETE FROM express WHERE id = ?', (id,))
+    
+    # 3. 提交并关闭连接
+    conn.commit()
+    conn.close()
+    
+    # 4. 返回成功提示
+    return jsonify({"message": "包裹已永久删除！", "status": "success"})
+# --------------------------------
+
 if __name__ == '__main__':
     app.run(debug=True)

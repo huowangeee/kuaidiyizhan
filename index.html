@@ -18,9 +18,12 @@
         .package-card { border-left: 5px solid #2196F3; background: #fafafa; padding: 10px 15px; margin-bottom: 10px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: relative;}
         .btn-refresh { padding: 8px 15px; background-color: #2196F3; color: white; border: none; cursor: pointer; border-radius: 4px; margin-bottom: 15px;}
         
-        /* 新增：出库按钮的样式 */
-        .btn-checkout { position: absolute; right: 15px; top: 15px; padding: 8px 15px; background-color: #2196F3; color: white; border: none; cursor: pointer; border-radius: 4px;}
+        /* 新增：出库与删除按钮的样式 */
+        .action-buttons { position: absolute; right: 15px; top: 15px; }
+        .btn-checkout { padding: 8px 15px; background-color: #2196F3; color: white; border: none; cursor: pointer; border-radius: 4px;}
         .btn-checkout:hover { background-color: #1e88df; }
+        .btn-delete { padding: 8px 15px; background-color: #f44336; color: white; border: none; cursor: pointer; border-radius: 4px; margin-left: 10px;}
+        .btn-delete:hover { background-color: #d32f2f; }
     </style>
 </head>
 <body>
@@ -52,7 +55,11 @@
                 <p style="margin: 5px 0; font-size: 14px;">取件码：<strong style="color: #e91e63;">{{ pkg.pickup_code }}</strong> | 状态：{{ pkg.status }}</p>
                 <p style="margin: 5px 0; font-size: 12px; color: #888;">入库时间：{{ pkg.arrival_time }}</p>
                 
-                <button v-if="pkg.status === '待取件'" class="btn-checkout" @click="checkoutPackage(pkg.id)">确认出库</button>
+                <div class="action-buttons">
+                    <button v-if="pkg.status === '待取件'" class="btn-checkout" @click="checkoutPackage(pkg.id)">确认出库</button>
+                    <!-- 新增：删除按钮 -->
+                    <button class="btn-delete" @click="deletePackage(pkg.id)">删除</button>
+                </div>
                 <p v-if="pkg.status === '已签收'" style="margin: 5px 0; font-size: 12px; color: #4CAF50; font-weight: bold;">
                     ✅ 出库时间：{{ pkg.pickup_time }}
                 </p>
@@ -146,6 +153,26 @@
                     .catch(error => {
                         console.error("出库失败", error);
                         alert("出库失败，请检查后端状态");
+                    });
+                },
+                
+                // === 新增：删除包裹方法 ===
+                deletePackage(id) {
+                    // 危险操作，必须先弹窗确认！
+                    if(!confirm("⚠️ 危险操作：确定要永久删除这条快递记录吗？此操作无法恢复！")) return;
+
+                    // 发起 DELETE 请求
+                    fetch(`http://127.0.0.1:5000/api/express/${id}`, {
+                        method: 'DELETE' // 注意这里的请求方法是 DELETE
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(data.message);
+                        this.fetchPackages(); // 删除成功后重新拉取列表，这样页面上的包裹就会消失
+                    })
+                    .catch(error => {
+                        console.error("删除失败", error);
+                        alert("删除失败，请检查网络或后端");
                     });
                 }
             },
