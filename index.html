@@ -41,8 +41,12 @@
         <h3>📋 站内快递列表</h3>
         <button class="btn-refresh" @click="fetchPackages">手动刷新列表</button>
         
-        <div v-if="packages.length > 0">
-            <div class="package-card" v-for="pkg in packages" :key="pkg.id">
+        <!-- 新增：搜索框 -->
+        <input type="text" v-model="searchQuery" placeholder="🔍 输入手机号、取件码或姓名搜索..." style="padding: 10px; width: 100%; box-sizing: border-box; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px;">
+        
+        <!-- 修改：将判断和循环的对象改为过滤后的数组 filteredPackages -->
+        <div v-if="filteredPackages.length > 0">
+            <div class="package-card" v-for="pkg in filteredPackages" :key="pkg.id">
                 <h4 style="margin: 0 0 10px 0;">单号：{{ pkg.tracking_number }}</h4>
                 <p style="margin: 5px 0; font-size: 14px;">收件人：{{ pkg.recipient_name }} | 手机号：{{ pkg.phone_number }}</p>
                 <p style="margin: 5px 0; font-size: 14px;">取件码：<strong style="color: #e91e63;">{{ pkg.pickup_code }}</strong> | 状态：{{ pkg.status }}</p>
@@ -55,18 +59,37 @@
             </div>
         </div>
         <div v-else>
-            <p style="color: #666; text-align: center;">目前驿站没有快递包裹哦~</p>
+            <p style="color: #666; text-align: center;">没有找到对应的快递包裹哦~</p>
         </div>
     </div>
 
     <script>
+// 从Vue库中解构出createApp函数
+// createApp是Vue 3.x中用于创建Vue应用实例的函数
         const { createApp } = Vue
 
         createApp({
             data() {
                 return {
                     packages: [], 
-                    newPackage: { tracking_number: '', recipient_name: '', phone_number: '', pickup_code: '' }
+                    newPackage: { tracking_number: '', recipient_name: '', phone_number: '', pickup_code: '' },
+                    searchQuery: '' // 新增：用于存储搜索框输入的关键词
+                }
+            },
+            // 新增：计算属性，用于实时过滤包裹列表
+            computed: {
+                filteredPackages() {
+                    const query = this.searchQuery.trim().toLowerCase();
+                    if (!query) {
+                        return this.packages; // 如果搜索框为空，返回所有包裹
+                    }
+                    // filter 会遍历数组，只保留符合条件的包裹
+                    return this.packages.filter(pkg => {
+                        return (pkg.phone_number && pkg.phone_number.includes(query)) ||
+                               (pkg.pickup_code && pkg.pickup_code.toLowerCase().includes(query)) ||
+                               (pkg.recipient_name && pkg.recipient_name.includes(query)) ||
+                               (pkg.tracking_number && pkg.tracking_number.includes(query));
+                    });
                 }
             },
             methods: {
