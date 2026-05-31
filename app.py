@@ -1,6 +1,8 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import sqlite3
+import json
+import os
 
 # 1. 实例化 Flask 应用（也就是召唤一台服务器）
 app = Flask(__name__)
@@ -53,6 +55,36 @@ def get_all_express():
     
     # 5. 返回 JSON 数据
     return jsonify(express_list)
+# --------------------------------
+
+# --- 新增：智能拉取物流信息 Mock 接口 ---
+@app.route('/api/mock-info/<tracking_number>', methods=['GET'])
+def get_mock_info(tracking_number):
+    try:
+        # 确定 json 文件的绝对路径，确保不因为运行目录问题找不到文件
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        mock_file_path = os.path.join(base_dir, 'mock_data.json')
+        
+        # 打开并读取 json 文件
+        with open(mock_file_path, 'r', encoding='utf-8') as f:
+            mock_data = json.load(f)
+            
+        # 查找对应的单号数据
+        if tracking_number in mock_data:
+            return jsonify({
+                "success": True,
+                "data": mock_data[tracking_number]
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "message": "未查询到上游数据"
+            })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"服务器内部错误: {str(e)}"
+        }), 500
 # --------------------------------
 
 

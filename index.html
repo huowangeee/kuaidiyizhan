@@ -64,6 +64,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            /* 背景图 */
             background-image: 
                 linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.55)), 
                 url('./image/fbjb.png');
@@ -95,10 +96,11 @@
         .stat-total { border-top-color: #2196F3; }
         
         /* 表单区 */
-        .form-section { background: rgba(238, 242, 245, 0.8); padding: 25px; border-radius: 12px; margin-bottom: 25px; }
+        .form-section { background: rgba(238, 242, 245, 0.8); padding: 25px; border-radius: 12px; margin: 0 auto 25px; max-width: 700px; text-align: center; }
         .form-section h3 { margin-top: 0; margin-bottom: 20px; color: #333; }
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .form-grid { display: flex; flex-direction: column; align-items: center; gap: 15px; margin-bottom: 20px; }
         .form-section input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; transition: border-color 0.3s; }
+        .form-grid > div, .form-grid > input { width: 80% !important; max-width: 600px; }
         .form-section input:focus { outline: none; border-color: #2196F3; }
         
         /* 按钮通用 */
@@ -193,11 +195,52 @@
         
         /* 搜索框 */
         .search-input { padding: 12px; width: 100%; box-sizing: border-box; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 8px; transition: border-color 0.3s, box-shadow 0.3s; }
-        .search-input:focus { outline: none; border-color: #2196F3; box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1); }
+        /* 自定义 Toast 提示 */
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        .toast { padding: 12px 20px; border-radius: 8px; color: white; font-weight: bold; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: slideInRight 0.3s ease-out forwards; pointer-events: auto; display: flex; align-items: center; gap: 10px; }
+        .toast.success { background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); }
+        .toast.error { background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%); }
+        .toast.warning { background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); }
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast.fade-out { animation: fadeOut 0.3s ease-in forwards; }
+        @keyframes fadeOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+
+        /* 自定义 Modal 弹窗 */
+        .custom-modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); z-index: 10000; display: flex; justify-content: center; align-items: center; }
+        .custom-modal-box { background: rgba(255, 255, 255, 0.95); padding: 30px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); width: 90%; max-width: 400px; text-align: center; animation: scaleUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes scaleUp { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .custom-modal-title { font-size: 20px; color: #333; margin-top: 0; margin-bottom: 10px; }
+        .custom-modal-message { color: #666; font-size: 15px; margin-bottom: 25px; line-height: 1.5; }
+        .custom-modal-actions { display: flex; gap: 15px; justify-content: center; }
+        .btn-cancel, .btn-confirm-action { padding: 10px 25px; border-radius: 8px; font-weight: bold; cursor: pointer; border: none; transition: all 0.2s; font-size: 14px; }
+        .btn-cancel { background: #f1f5f9; color: #475569; }
+        .btn-cancel:hover { background: #e2e8f0; }
+        .btn-confirm-action { background: #e91e63; color: white; }
+        .btn-confirm-action:hover { background: #d81b60; box-shadow: 0 4px 10px rgba(233, 30, 99, 0.3); }
     </style>
 </head>
 <body>
     <div id="app">
+        <!-- 全局 Toast 容器 -->
+        <div class="toast-container">
+            <div v-for="toast in toasts" :key="toast.id" class="toast" :class="[toast.type, { 'fade-out': toast.closing }]">
+                <i class="fa-solid" :class="toast.type === 'success' ? 'fa-circle-check' : (toast.type === 'error' ? 'fa-circle-xmark' : 'fa-triangle-exclamation')"></i>
+                {{ toast.message }}
+            </div>
+        </div>
+
+        <!-- 自定义 Confirm 弹窗 -->
+        <div class="custom-modal-overlay" v-if="confirmDialog.show">
+            <div class="custom-modal-box">
+                <h3 class="custom-modal-title">{{ confirmDialog.title }}</h3>
+                <p class="custom-modal-message">{{ confirmDialog.message }}</p>
+                <div class="custom-modal-actions">
+                    <button class="btn-cancel" @click="resolveConfirm(false)">取消</button>
+                    <button class="btn-confirm-action" @click="resolveConfirm(true)">确定操作</button>
+                </div>
+            </div>
+        </div>
+
         <!-- 未登录时显示全屏居中容器 -->
         <div class="login-wrapper" v-if="!isLoggedIn">
             <div class="glass-card">
@@ -270,12 +313,23 @@
                     <div class="form-section" style="margin-bottom: 0;">
                         <h3><i class="fa-solid fa-pen-to-square" style="color: #FF9800; margin-right: 8px;"></i> 新包裹入库</h3>
                         <div class="form-grid">
-                            <input type="text" v-model="newPackage.tracking_number" placeholder="快递单号 (必填)">
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" v-model="newPackage.tracking_number" placeholder="快递单号 (必填)" style="flex: 1; margin: 0;">
+                                <button class="btn-submit" @click="fetchMockData" style="width: auto; margin: 0; padding: 0 15px; background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);">一键获取</button>
+                            </div>
                             <input type="text" v-model="newPackage.recipient_name" placeholder="收件人姓名 (必填)">
-                            <input type="text" v-model="newPackage.phone_number" placeholder="手机号码">
-                            <input type="text" v-model="newPackage.pickup_code" placeholder="取件码 (例:A-1-01)">
+                            <input type="text" v-model="newPackage.phone_number" placeholder="手机号码" @input="extractPhoneTail">
+                            
+                            <div style="display: flex; align-items: center; background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 0 10px; overflow: hidden; height: 44px; box-sizing: border-box;">
+                                <span style="font-size: 14px; color: #666; white-space: nowrap; margin-right: 5px;">取件码:</span>
+                                <input type="number" v-model="newPackage.shelf" placeholder="货架(1-100)" min="1" max="100" style="border:none; padding: 0 5px; width: 35%; height: 100%; outline: none; box-shadow: none; background: transparent; margin: 0;">
+                                <span style="color: #ccc;">-</span>
+                                <input type="number" v-model="newPackage.layer" placeholder="层(1-10)" min="1" max="10" style="border:none; padding: 0 5px; width: 25%; height: 100%; outline: none; box-shadow: none; background: transparent; margin: 0;">
+                                <span style="color: #ccc;">-</span>
+                                <input type="number" v-model="newPackage.tail" placeholder="尾号" min="1000" max="9999" style="border:none; padding: 0 5px; width: 35%; height: 100%; outline: none; box-shadow: none; background: transparent; margin: 0;">
+                            </div>
                         </div>
-                        <button class="btn-submit" @click="submitPackage">确认入库</button>
+                        <button class="btn-submit" @click="submitPackage" style="margin-top: 15px; width: 80%; max-width: 600px;">确认入库</button>
                     </div>
                 </div>
 
@@ -360,8 +414,13 @@
 
                     
                     packages: [],   // 包裹列表数组，用于存储所有包裹信息
-                    newPackage: { tracking_number: '', recipient_name: '', phone_number: '', pickup_code: '' },
-                    searchQuery: '' // 新增：用于存储搜索框输入的关键词
+                    newPackage: { tracking_number: '', recipient_name: '', phone_number: '', shelf: '', layer: '', tail: '' },
+                    searchQuery: '', // 新增：用于存储搜索框输入的关键词
+
+                    // 自定义弹窗状态
+                    toasts: [],
+                    toastCounter: 0,
+                    confirmDialog: { show: false, title: '', message: '', resolve: null }
                 }
             },
             // 新增：计算属性，用于实时过滤包裹列表和计算统计数据
@@ -396,6 +455,33 @@
                 }
             },
             methods: {
+                // --- 自定义弹窗逻辑 ---
+                showToast(message, type = 'success') {
+                    const id = this.toastCounter++;
+                    this.toasts.push({ id, message, type, closing: false });
+                    setTimeout(() => {
+                        const index = this.toasts.findIndex(t => t.id === id);
+                        if (index !== -1) {
+                            this.toasts[index].closing = true;
+                            setTimeout(() => {
+                                this.toasts = this.toasts.filter(t => t.id !== id);
+                            }, 300); // 等待动画结束
+                        }
+                    }, 3000);
+                },
+                showConfirm(title, message) {
+                    return new Promise((resolve) => {
+                        this.confirmDialog = { show: true, title, message, resolve };
+                    });
+                },
+                resolveConfirm(result) {
+                    if (this.confirmDialog.resolve) {
+                        this.confirmDialog.resolve(result);
+                    }
+                    this.confirmDialog.show = false;
+                },
+                // ---------------------
+
                 // 侧边栏与 Tab 切换逻辑
                 changeTab(tabName) {
                     this.activeTab = tabName;
@@ -408,10 +494,11 @@
                 togglePassword() {
                     this.showPassword = !this.showPassword;
                 },
-                // === 新增：登录与退出逻辑 ===
+                
+                // === 登录逻辑 ===
                 handleLogin() {
-                    if (!this.loginForm.username || !this.loginForm.password) {
-                        alert("请输入用户名和密码！");
+                    if (this.loginForm.username === '' || this.loginForm.password === '') {
+                        this.showToast("请输入账号和密码！", "warning");
                         return;
                     }
                     
@@ -434,17 +521,18 @@
                             
                             // 登录成功后，主动拉取包裹列表
                             this.fetchPackages();
+                            this.showToast("登录成功，欢迎回来！", "success");
                         } else {
                             // 账号密码错误
-                            alert(data.message);
+                            this.showToast(data.message, "error");
                         }
                     })
                     .catch(error => {
                         console.error("登录请求失败", error);
-                        alert("无法连接到服务器，请检查后端是否已启动！");
+                        this.showToast("无法连接到服务器，请检查后端是否已启动！", "error");
                     });
                 },
-                
+
                 handleLogout() {
                     // 清空状态
                     this.isLoggedIn = false;
@@ -462,12 +550,46 @@
                         .then(data => this.packages = data)
                         .catch(error => console.error("拉取数据失败", error));
                 },
+                async fetchMockData() {
+                    if (!this.newPackage.tracking_number) {
+                        this.showToast("请先输入快递单号！", "warning");
+                        return;
+                    }
+                    try {
+                        const response = await fetch(`http://127.0.0.1:5000/api/mock-info/${this.newPackage.tracking_number}`);
+                        const result = await response.json();
+                        if (result.success) {
+                            this.newPackage.recipient_name = result.data.recipient_name;
+                            this.newPackage.phone_number = result.data.phone_number;
+                            this.extractPhoneTail();
+                            this.showToast("已拉取上游物流信息！", "success");
+                        } else {
+                            this.showToast(result.message, "warning");
+                        }
+                    } catch (error) {
+                        this.showToast("拉取失败，请检查网络或后端是否开启！", "error");
+                    }
+                },
+                extractPhoneTail() {
+                    if (this.newPackage.phone_number && this.newPackage.phone_number.length >= 4) {
+                        this.newPackage.tail = this.newPackage.phone_number.slice(-4);
+                    }
+                },
                 submitPackage() {
                     if (!this.newPackage.tracking_number || !this.newPackage.recipient_name) {
-                        alert("请至少填写快递单号和收件人姓名！"); return;
+                        this.showToast("请至少填写快递单号和收件人姓名！", "warning"); return;
                     }
+                    
+                    let generated_pickup_code = '';
+                    if (this.newPackage.shelf || this.newPackage.layer || this.newPackage.tail) {
+                        generated_pickup_code = `${this.newPackage.shelf || '1'}-${this.newPackage.layer || '1'}-${this.newPackage.tail || '0000'}`;
+                    }
+
                     const payload = {
-                        ...this.newPackage,
+                        tracking_number: this.newPackage.tracking_number,
+                        recipient_name: this.newPackage.recipient_name,
+                        phone_number: this.newPackage.phone_number,
+                        pickup_code: generated_pickup_code,
                         arrival_time: new Date().toLocaleString()
                     };
                     fetch('http://127.0.0.1:5000/api/express', {
@@ -478,21 +600,22 @@
                     .then(response => response.json())
                     .then(data => {
                         this.fetchPackages();
-                        this.newPackage = { tracking_number: '', recipient_name: '', phone_number: '', pickup_code: '' };
+                        this.newPackage = { tracking_number: '', recipient_name: '', phone_number: '', shelf: '', layer: '', tail: '' };
+                        this.showToast("包裹已成功入库！", "success");
                     })
-                    .catch(error => alert("入库失败，请检查网络或后端"));
+                    .catch(error => this.showToast("入库失败，请检查网络或后端", "error"));
                 },
 
                 // === 新增：包裹出库方法 ===
-                checkoutPackage(id) {
-                    // 加一个简单的确认弹窗，防止误触
-                    if(!confirm("确定要将这个包裹出库吗？")) return;
+                async checkoutPackage(id) {
+                    // 自定义弹窗确认
+                    const confirmed = await this.showConfirm("确认出库", "确定要将这个包裹出库吗？出库后状态将变更为“已签收”。");
+                    if(!confirmed) return;
 
                     const payload = {
                         pickup_time: new Date().toLocaleString() // 生成当前时间作为出库时间
                     };
 
-                    // 注意这里的反引号 ` ，允许我们在字符串里动态插入变量 ${id}
                     fetch(`http://127.0.0.1:5000/api/express/${id}/checkout`, {
                         method: 'PUT',
                         headers: {
@@ -502,32 +625,33 @@
                     })
                     .then(response => response.json())
                     .then(data => {
-                        alert(data.message);
-                        this.fetchPackages(); // 出库成功后，重新拉取最新列表，页面会自动更新
+                        this.showToast(data.message, "success");
+                        this.fetchPackages(); 
                     })
                     .catch(error => {
                         console.error("出库失败", error);
-                        alert("出库失败，请检查后端状态");
+                        this.showToast("出库失败，请检查后端状态", "error");
                     });
                 },
                 
                 // === 新增：删除包裹方法 ===
-                deletePackage(id) {
-                    // 危险操作，必须先弹窗确认！
-                    if(!confirm("⚠️ 危险操作：确定要永久删除这条快递记录吗？此操作无法恢复！")) return;
+                async deletePackage(id) {
+                    // 自定义危险操作弹窗
+                    const confirmed = await this.showConfirm("永久删除", "⚠️ 确定要永久删除这条快递记录吗？此操作无法恢复！");
+                    if(!confirmed) return;
 
                     // 发起 DELETE 请求
                     fetch(`http://127.0.0.1:5000/api/express/${id}`, {
-                        method: 'DELETE' // 注意这里的请求方法是 DELETE
+                        method: 'DELETE'
                     })
                     .then(response => response.json())
                     .then(data => {
-                        alert(data.message);
-                        this.fetchPackages(); // 删除成功后重新拉取列表，这样页面上的包裹就会消失
+                        this.showToast(data.message, "success");
+                        this.fetchPackages(); 
                     })
                     .catch(error => {
                         console.error("删除失败", error);
-                        alert("删除失败，请检查网络或后端");
+                        this.showToast("删除失败，请检查网络或后端", "error");
                     });
                 }
             },

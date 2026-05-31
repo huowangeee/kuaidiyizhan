@@ -1,0 +1,22 @@
+{
+  "YT123456": {
+    "recipient_name": "张三",
+    "phone_number": "13800138000"
+  },
+  "ZT654321": {
+    "recipient_name": "李四",
+    "phone_number": "13912345678"
+  },
+  "SF987654": {
+    "recipient_name": "王五",
+    "phone_number": "15898765432"
+  },
+  "JD111222": {
+    "recipient_name": "赵六",
+    "phone_number": "18611112222"
+  },
+  "YD333444": {
+    "recipient_name": "孙七",
+    "phone_number": "19933334444"
+  }
+}
