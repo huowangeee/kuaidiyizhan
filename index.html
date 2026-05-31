@@ -193,6 +193,21 @@
         .btn-logout { padding: 6px 12px; background-color: #f44336; color: white; border: none; border-radius: 6px; cursor: pointer; margin-left: 15px; transition: background-color 0.3s;}
         .btn-logout:hover { background-color: #d32f2f; }
         
+        /* 驿站管理 - 子标签页 */
+        .sub-tabs { display: flex; border-bottom: 2px solid #eee; margin-bottom: 20px; }
+        .sub-tab { padding: 10px 20px; cursor: pointer; color: #666; font-weight: bold; transition: all 0.3s; position: relative; }
+        .sub-tab.active { color: #a855f7; }
+        .sub-tab.active::after { content: ''; position: absolute; bottom: -2px; left: 0; width: 100%; height: 3px; background: #a855f7; border-radius: 3px 3px 0 0; }
+        
+        /* 员工管理表格 */
+        .employee-list { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .employee-list th, .employee-list td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; }
+        .employee-list th { background: #f8fafc; color: #475569; }
+        .employee-list tr:last-child td { border-bottom: none; }
+        .btn-edit, .btn-delete-small { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; margin-right: 5px; color: white;}
+        .btn-edit { background: #2196F3; }
+        .btn-delete-small { background: #f44336; }
+
         /* 搜索框 */
         .search-input { padding: 12px; width: 100%; box-sizing: border-box; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 8px; transition: border-color 0.3s, box-shadow 0.3s; }
         /* 自定义 Toast 提示 */
@@ -237,6 +252,19 @@
                 <div class="custom-modal-actions">
                     <button class="btn-cancel" @click="resolveConfirm(false)">取消</button>
                     <button class="btn-confirm-action" @click="resolveConfirm(true)">确定操作</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 自定义 修改员工密码 弹窗 -->
+        <div class="custom-modal-overlay" v-if="editEmployeeModal.show">
+            <div class="custom-modal-box">
+                <h3 class="custom-modal-title">修改员工密码</h3>
+                <p class="custom-modal-message">正在修改账号 <strong style="color: #a855f7;">{{ editEmployeeModal.username }}</strong> 的密码</p>
+                <input type="text" v-model="editEmployeeModal.password" placeholder="请输入新密码" style="width: 80%; padding: 10px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box;">
+                <div class="custom-modal-actions">
+                    <button class="btn-cancel" @click="editEmployeeModal.show = false">取消</button>
+                    <button class="btn-confirm-action" style="background: #a855f7;" @click="updateEmployee">确认修改</button>
                 </div>
             </div>
         </div>
@@ -292,6 +320,10 @@
                         <i class="fa-solid fa-chart-pie"></i>
                         <span v-show="!isSidebarCollapsed">数据面板</span>
                     </div>
+                    <div class="sidebar-item" :class="{ active: activeTab === 'station' }" @click="changeTab('station')" v-if="currentUser?.username === 'admin'">
+                        <i class="fa-solid fa-building-user"></i>
+                        <span v-show="!isSidebarCollapsed">驿站管理</span>
+                    </div>
                     <div class="sidebar-item" :class="{ active: activeTab === 'settings' }" @click="changeTab('settings')">
                         <i class="fa-solid fa-gear"></i>
                         <span v-show="!isSidebarCollapsed">系统设置</span>
@@ -318,15 +350,15 @@
                                 <button class="btn-submit" @click="fetchMockData" style="width: auto; margin: 0; padding: 0 15px; background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);">一键获取</button>
                             </div>
                             <input type="text" v-model="newPackage.recipient_name" placeholder="收件人姓名 (必填)">
-                            <input type="text" v-model="newPackage.phone_number" placeholder="手机号码" @input="extractPhoneTail">
+                            <input type="text" v-model="newPackage.phone_number" placeholder="手机号码">
                             
                             <div style="display: flex; align-items: center; background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 0 10px; overflow: hidden; height: 44px; box-sizing: border-box;">
                                 <span style="font-size: 14px; color: #666; white-space: nowrap; margin-right: 5px;">取件码:</span>
-                                <input type="number" v-model="newPackage.shelf" placeholder="货架(1-100)" min="1" max="100" style="border:none; padding: 0 5px; width: 35%; height: 100%; outline: none; box-shadow: none; background: transparent; margin: 0;">
+                                <input type="number" v-model="newPackage.shelf" placeholder="货架" min="1" :max="stationConfig.maxShelf" style="border:none; padding: 0 5px; width: 35%; height: 100%; outline: none; box-shadow: none; background: transparent; margin: 0;">
                                 <span style="color: #ccc;">-</span>
-                                <input type="number" v-model="newPackage.layer" placeholder="层(1-10)" min="1" max="10" style="border:none; padding: 0 5px; width: 25%; height: 100%; outline: none; box-shadow: none; background: transparent; margin: 0;">
+                                <input type="number" v-model="newPackage.layer" placeholder="层" min="1" :max="stationConfig.maxLayer" style="border:none; padding: 0 5px; width: 25%; height: 100%; outline: none; box-shadow: none; background: transparent; margin: 0;">
                                 <span style="color: #ccc;">-</span>
-                                <input type="number" v-model="newPackage.tail" placeholder="尾号" min="1000" max="9999" style="border:none; padding: 0 5px; width: 35%; height: 100%; outline: none; box-shadow: none; background: transparent; margin: 0;">
+                                <input type="number" v-model="newPackage.tail" placeholder="尾号" min="1" :max="stationConfig.maxTail" style="border:none; padding: 0 5px; width: 35%; height: 100%; outline: none; box-shadow: none; background: transparent; margin: 0;">
                             </div>
                         </div>
                         <button class="btn-submit" @click="submitPackage" style="margin-top: 15px; width: 80%; max-width: 600px;">确认入库</button>
@@ -382,6 +414,68 @@
                     </div>
                 </div>
 
+                <!-- 新增：驿站管理 Tab -->
+                <div v-if="activeTab === 'station' && currentUser?.username === 'admin'">
+                    <h2 class="tab-title"><i class="fa-solid fa-building-user"></i> 驿站管理</h2>
+                    
+                    <div class="sub-tabs">
+                        <div class="sub-tab" :class="{ active: activeStationTab === 'config' }" @click="activeStationTab = 'config'; localStorage.setItem('station_subTab', 'config')">容量配置</div>
+                        <div class="sub-tab" :class="{ active: activeStationTab === 'employees' }" @click="activeStationTab = 'employees'; localStorage.setItem('station_subTab', 'employees'); fetchEmployees()">员工管理</div>
+                    </div>
+
+                    <div v-if="activeStationTab === 'config'" class="form-section" style="max-width: 700px; margin: 0 auto 25px;">
+                        <h3><i class="fa-solid fa-sliders" style="color: #FF9800; margin-right: 8px;"></i> 容量配置</h3>
+                        <div class="form-grid">
+                            <div style="display: flex; align-items: center; width: 80%; max-width: 600px; justify-content: space-between;">
+                                <span style="font-weight: bold; color: #333;">最大货架数：</span>
+                                <input type="number" v-model.number="stationConfig.maxShelf" min="1" style="width: 60%; margin: 0;">
+                            </div>
+                            <div style="display: flex; align-items: center; width: 80%; max-width: 600px; justify-content: space-between;">
+                                <span style="font-weight: bold; color: #333;">最大层数：</span>
+                                <input type="number" v-model.number="stationConfig.maxLayer" min="1" style="width: 60%; margin: 0;">
+                            </div>
+                            <div style="display: flex; align-items: center; width: 80%; max-width: 600px; justify-content: space-between;">
+                                <span style="font-weight: bold; color: #333;">最大尾号：</span>
+                                <input type="number" v-model.number="stationConfig.maxTail" min="1" style="width: 60%; margin: 0;">
+                            </div>
+                        </div>
+                        <button class="btn-submit" @click="saveConfig" style="width: 80%; max-width: 600px; margin-top: 15px;">保存配置</button>
+                    </div>
+
+                    <div v-if="activeStationTab === 'employees'" class="form-section" style="max-width: 700px; margin: 0 auto 25px;">
+                        <h3><i class="fa-solid fa-users" style="color: #a855f7; margin-right: 8px;"></i> 新增员工</h3>
+                        <div style="display: flex; gap: 10px; margin-bottom: 25px; width: 90%; margin-left: auto; margin-right: auto;">
+                            <input type="text" v-model="newEmployee.username" placeholder="登录账号" style="flex: 1; margin: 0;">
+                            <input type="text" v-model="newEmployee.password" placeholder="初始密码" style="flex: 1; margin: 0;">
+                            <button class="btn-submit" @click="addEmployee" style="width: auto; margin: 0; padding: 0 25px; background: #a855f7;">添加</button>
+                        </div>
+
+                        <h3 style="margin-top: 30px;"><i class="fa-solid fa-address-book" style="color: #4CAF50; margin-right: 8px;"></i> 员工列表</h3>
+                        <table class="employee-list">
+                            <thead>
+                                <tr>
+                                    <th>账号</th>
+                                    <th>角色</th>
+                                    <th style="text-align: right;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="emp in employees" :key="emp.id">
+                                    <td>{{ emp.username }}</td>
+                                    <td>
+                                        <span v-if="emp.role === 'admin'" style="color: #a855f7; font-weight: bold;"><i class="fa-solid fa-crown"></i> 管理员</span>
+                                        <span v-else style="color: #666;"><i class="fa-solid fa-user"></i> 员工</span>
+                                    </td>
+                                    <td style="text-align: right;">
+                                        <button class="btn-edit" @click="showEditEmployeeModal(emp)"><i class="fa-solid fa-pen"></i></button>
+                                        <button class="btn-delete-small" @click="deleteEmployee(emp)"><i class="fa-solid fa-trash"></i></button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <!-- 4. 系统设置 Tab -->
                 <div v-if="activeTab === 'settings'">
                     <h2 class="tab-title"><i class="fa-solid fa-gear"></i> 系统设置</h2>
@@ -408,7 +502,7 @@
                     showPassword: false,
                     
                     // 侧边栏状态
-                    activeTab: 'inbound', // 默认显示快递入库
+                    activeTab: localStorage.getItem('station_activeTab') || 'inbound', // 默认选中或读取缓存的 Tab
                     isSidebarCollapsed: false,
 
 
@@ -420,7 +514,16 @@
                     // 自定义弹窗状态
                     toasts: [],
                     toastCounter: 0,
-                    confirmDialog: { show: false, title: '', message: '', resolve: null }
+                    confirmDialog: { show: false, title: '', message: '', resolve: null },
+
+                    // 驿站容量配置
+                    stationConfig: { maxShelf: 100, maxLayer: 10, maxTail: 9999 },
+
+                    // 员工管理状态
+                    activeStationTab: localStorage.getItem('station_subTab') || 'config',
+                    employees: [],
+                    newEmployee: { username: '', password: '' },
+                    editEmployeeModal: { show: false, id: null, username: '', password: '' }
                 }
             },
             // 新增：计算属性，用于实时过滤包裹列表和计算统计数据
@@ -485,6 +588,7 @@
                 // 侧边栏与 Tab 切换逻辑
                 changeTab(tabName) {
                     this.activeTab = tabName;
+                    localStorage.setItem('station_activeTab', tabName); // 缓存用户当前停留的页面
                 },
                 toggleSidebar() {
                     this.isSidebarCollapsed = !this.isSidebarCollapsed;
@@ -561,7 +665,6 @@
                         if (result.success) {
                             this.newPackage.recipient_name = result.data.recipient_name;
                             this.newPackage.phone_number = result.data.phone_number;
-                            this.extractPhoneTail();
                             this.showToast("已拉取上游物流信息！", "success");
                         } else {
                             this.showToast(result.message, "warning");
@@ -570,16 +673,114 @@
                         this.showToast("拉取失败，请检查网络或后端是否开启！", "error");
                     }
                 },
-                extractPhoneTail() {
-                    if (this.newPackage.phone_number && this.newPackage.phone_number.length >= 4) {
-                        this.newPackage.tail = this.newPackage.phone_number.slice(-4);
-                    }
+                saveConfig() {
+                    fetch('http://127.0.0.1:5000/api/config', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.stationConfig)
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if(data.success) {
+                            this.showToast(data.message, "success");
+                        } else {
+                            this.showToast(data.message, "error");
+                        }
+                    })
+                    .catch(e => {
+                        console.error("保存配置失败", e);
+                        this.showToast("保存配置失败，请检查后端状态", "error");
+                    });
                 },
+                
+                // === 员工管理相关逻辑 ===
+                fetchEmployees() {
+                    fetch('http://127.0.0.1:5000/api/users')
+                        .then(res => res.json())
+                        .then(data => this.employees = data)
+                        .catch(e => console.error("获取员工列表失败", e));
+                },
+                addEmployee() {
+                    if(!this.newEmployee.username || !this.newEmployee.password) {
+                        this.showToast("账号和密码不能为空！", "warning"); return;
+                    }
+                    fetch('http://127.0.0.1:5000/api/users', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.newEmployee)
+                    }).then(res => res.json()).then(data => {
+                        if(data.success) {
+                            this.showToast(data.message, "success");
+                            this.newEmployee = { username: '', password: '' };
+                            this.fetchEmployees();
+                        } else {
+                            this.showToast(data.message, "error");
+                        }
+                    }).catch(e => this.showToast("添加失败", "error"));
+                },
+                showEditEmployeeModal(emp) {
+                    this.editEmployeeModal = {
+                        show: true,
+                        id: emp.id,
+                        username: emp.username,
+                        password: emp.password
+                    };
+                },
+                updateEmployee() {
+                    if(!this.editEmployeeModal.password) {
+                        this.showToast("密码不能为空！", "warning"); return;
+                    }
+                    fetch(`http://127.0.0.1:5000/api/users/${this.editEmployeeModal.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ password: this.editEmployeeModal.password })
+                    }).then(res => res.json()).then(data => {
+                        if(data.success) {
+                            this.showToast(data.message, "success");
+                            this.editEmployeeModal.show = false;
+                            this.fetchEmployees();
+                        } else {
+                            this.showToast(data.message, "error");
+                        }
+                    }).catch(e => this.showToast("修改失败", "error"));
+                },
+                async deleteEmployee(emp) {
+                    if (emp.username === 'admin') {
+                        this.showToast("安全限制：禁止删除系统超级管理员账号！", "error");
+                        return;
+                    }
+                    const confirmed = await this.showConfirm("删除员工", `⚠️ 确定要永久删除员工【${emp.username}】吗？`);
+                    if(!confirmed) return;
+
+                    fetch(`http://127.0.0.1:5000/api/users/${emp.id}`, {
+                        method: 'DELETE'
+                    }).then(res => res.json()).then(data => {
+                        if(data.success) {
+                            this.showToast(data.message, "success");
+                            this.fetchEmployees();
+                        } else {
+                            this.showToast(data.message, "error");
+                        }
+                    }).catch(e => this.showToast("删除失败", "error"));
+                },
+                // ==========================
+
                 submitPackage() {
                     if (!this.newPackage.tracking_number || !this.newPackage.recipient_name) {
                         this.showToast("请至少填写快递单号和收件人姓名！", "warning"); return;
                     }
                     
+                    // 新增：前端拦截超出最大容量配置的输入
+                    if (this.newPackage.shelf && parseInt(this.newPackage.shelf) > this.stationConfig.maxShelf) {
+                        this.showToast(`货架号不能超过最大配置：${this.stationConfig.maxShelf}`, "warning"); return;
+                    }
+                    if (this.newPackage.layer && parseInt(this.newPackage.layer) > this.stationConfig.maxLayer) {
+                        this.showToast(`层数不能超过最大配置：${this.stationConfig.maxLayer}`, "warning"); return;
+                    }
+                    if (this.newPackage.tail && parseInt(this.newPackage.tail) > this.stationConfig.maxTail) {
+                        this.showToast(`尾号不能超过最大配置：${this.stationConfig.maxTail}`, "warning"); return;
+                    }
+
                     let generated_pickup_code = '';
                     if (this.newPackage.shelf || this.newPackage.layer || this.newPackage.tail) {
                         generated_pickup_code = `${this.newPackage.shelf || '1'}-${this.newPackage.layer || '1'}-${this.newPackage.tail || '0000'}`;
@@ -656,6 +857,14 @@
                 }
             },
             mounted() {
+                // 读取后端配置
+                fetch('http://127.0.0.1:5000/api/config')
+                    .then(res => res.json())
+                    .then(data => {
+                        if(data.maxShelf) this.stationConfig = data;
+                    })
+                    .catch(e => console.error("读取全局配置失败", e));
+
                 // 修改：页面一加载时，先检查浏览器里有没有存过登录状态
                 if (localStorage.getItem('station_isLoggedIn') === 'true') {
                     // 恢复登录状态
@@ -663,6 +872,10 @@
                     this.currentUser = JSON.parse(localStorage.getItem('station_currentUser'));
                     // 已登录，主动去拉取一次包裹列表
                     this.fetchPackages();
+                    // 如果是管理员，拉取一次员工列表
+                    if (this.currentUser.username === 'admin') {
+                        this.fetchEmployees();
+                    }
                 }
                 // (如果没登录，就什么都不拉取，安静地展示登录界面)
             }

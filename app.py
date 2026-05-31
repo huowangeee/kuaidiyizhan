@@ -85,6 +85,35 @@ def get_mock_info(tracking_number):
             "success": False,
             "message": f"服务器内部错误: {str(e)}"
         }), 500
+# --- 新增：读取和更新系统配置接口 ---
+@app.route('/api/config', methods=['GET'])
+def get_config():
+    try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        config_path = os.path.join(base_dir, 'config.json')
+        if not os.path.exists(config_path):
+            # 如果配置文件不存在，返回一个默认的配置，并写入文件
+            default_config = {"maxShelf": 100, "maxLayer": 10, "maxTail": 9999}
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump(default_config, f)
+            return jsonify(default_config)
+        
+        with open(config_path, 'r', encoding='utf-8') as f:
+            return jsonify(json.load(f))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/config', methods=['PUT'])
+def update_config():
+    try:
+        data = request.get_json()
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        config_path = os.path.join(base_dir, 'config.json')
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f)
+        return jsonify({"success": True, "message": "配置已成功保存！"})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 # --------------------------------
 
 
@@ -188,6 +217,66 @@ def login():
         # 如果没找到，说明账号或密码错误
         # 401 代表 Unauthorized (未授权)
         return jsonify({"status": "error", "message": "账号或密码错误！"}), 401
+# --------------------------------
+
+# --- 新增：员工管理接口 (CRUD) ---
+@app.route('/api/users', methods=['GET'])
+def get_users():
+    conn = get_db_connection()
+    users = conn.execute('SELECT id, username, role, password FROM user').fetchall()
+    conn.close()
+    return jsonify([dict(row) for row in users])
+
+@app.route('/api/users', methods=['POST'])
+def add_user():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    role = data.get('role', 'employee')
+    
+    conn = get_db_connection()
+    # 检查用户名是否已存在
+    existing = conn.execute('SELECT id FROM user WHERE username = ?', (username,)).fetchone()
+    if existing:
+        conn.close()
+        return jsonify({"success": False, "message": "该账号已存在！"}), 400
+        
+    conn.execute('INSERT INTO user (username, password, role) VALUES (?, ?, ?)', (username, password, role))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True, "message": "添加员工成功！"})
+
+@app.route('/api/users/<int:id>', methods=['PUT'])
+def update_user(id):
+    data = request.get_json()
+    password = data.get('password')
+    
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM user WHERE id = ?', (id,)).fetchone()
+    if not user:
+        conn.close()
+        return jsonify({"success": False, "message": "账号不存在！"}), 404
+        
+    conn.execute('UPDATE user SET password = ? WHERE id = ?', (password, id))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True, "message": "密码修改成功！"})
+
+@app.route('/api/users/<int:id>', methods=['DELETE'])
+def delete_user(id):
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM user WHERE id = ?', (id,)).fetchone()
+    if not user:
+        conn.close()
+        return jsonify({"success": False, "message": "账号不存在！"}), 404
+    if user['username'] == 'admin':
+        conn.close()
+        return jsonify({"success": False, "message": "安全限制：不能删除超级管理员账号！"}), 403
+        
+    conn.execute('DELETE FROM user WHERE id = ?', (id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True, "message": "账号已永久删除！"})
 # --------------------------------
 
 if __name__ == '__main__':
