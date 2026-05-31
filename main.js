@@ -67,6 +67,11 @@ app.on('window-all-closed', function () {
 // 安全护航：在应用程序彻底退出前，把挂靠的 Python 进程强行杀掉，防止端口被锁死
 app.on('before-quit', () => {
     if (pythonProcess) {
-        pythonProcess.kill();
+        if (process.platform === 'win32') {
+            const { spawnSync } = require('child_process');
+            spawnSync('taskkill', ['/pid', pythonProcess.pid, '/f', '/t']);
+        } else {
+            pythonProcess.kill();
+        }
     }
 });
