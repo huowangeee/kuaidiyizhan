@@ -15,6 +15,7 @@ if not os.path.exists(DATA_DIR):
 
 DB_PATH = os.path.join(DATA_DIR, 'station.db')
 CONFIG_PATH = os.path.join(DATA_DIR, 'config.json')
+MOCK_DATA_PATH = os.path.join(DATA_DIR, 'mock_data.json')
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -42,6 +43,17 @@ def init_db():
         cursor.execute("INSERT INTO user (username, password, role) VALUES ('admin', '123456', 'admin')")
     conn.commit()
     conn.close()
+
+    if not os.path.exists(MOCK_DATA_PATH):
+        default_mock_data = {
+            "YT123456": {"recipient_name": "张三", "phone_number": "13800138000"},
+            "ZT654321": {"recipient_name": "李四", "phone_number": "13912345678"},
+            "SF987654": {"recipient_name": "王五", "phone_number": "15898765432"},
+            "JD111222": {"recipient_name": "赵六", "phone_number": "18611112222"},
+            "YD333444": {"recipient_name": "孙七", "phone_number": "19933334444"}
+        }
+        with open(MOCK_DATA_PATH, 'w', encoding='utf-8') as f:
+            json.dump(default_mock_data, f, ensure_ascii=False, indent=2)
 
 # 启动前自动初始化数据库
 init_db()
@@ -96,12 +108,12 @@ def get_all_express():
 @app.route('/api/mock-info/<tracking_number>', methods=['GET'])
 def get_mock_info(tracking_number):
     try:
-        # 确定 json 文件的绝对路径，确保不因为运行目录问题找不到文件
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        mock_file_path = os.path.join(base_dir, 'mock_data.json')
+        # 如果文件不存在，返回空
+        if not os.path.exists(MOCK_DATA_PATH):
+            return jsonify({"success": False, "message": "未查询到上游数据"})
         
         # 打开并读取 json 文件
-        with open(mock_file_path, 'r', encoding='utf-8') as f:
+        with open(MOCK_DATA_PATH, 'r', encoding='utf-8') as f:
             mock_data = json.load(f)
             
         # 查找对应的单号数据
