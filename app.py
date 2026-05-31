@@ -4,16 +4,51 @@ import sqlite3
 import json
 import os
 
-# 1. 实例化 Flask 应用（也就是召唤一台服务器）
+# 1. 实例化 Flask 应用
 app = Flask(__name__)
 CORS(app)
 
+# 定义数据存储目录 (Windows 默认在 AppData/Roaming/kuaidiyizhan)
+DATA_DIR = os.path.join(os.path.expanduser('~'), 'AppData', 'Roaming', 'kuaidiyizhan')
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
+
+DB_PATH = os.path.join(DATA_DIR, 'station.db')
+CONFIG_PATH = os.path.join(DATA_DIR, 'config.json')
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.executescript('''
+        CREATE TABLE IF NOT EXISTS user (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            password TEXT NOT NULL,
+            role TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS express (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tracking_number TEXT NOT NULL,
+            recipient_name TEXT NOT NULL,
+            phone_number TEXT NOT NULL,
+            pickup_code TEXT NOT NULL,
+            status TEXT NOT NULL,
+            arrival_time TEXT,
+            pickup_time TEXT
+        );
+    ''')
+    admin = cursor.execute("SELECT * FROM user WHERE username='admin'").fetchone()
+    if not admin:
+        cursor.execute("INSERT INTO user (username, password, role) VALUES ('admin', '123456', 'admin')")
+    conn.commit()
+    conn.close()
+
+# 启动前自动初始化数据库
+init_db()
+
 def get_db_connection():
-    # 创建一个到SQLite数据库的连接，数据库文件名为'station.db'
-    conn = sqlite3.connect('station.db')
-    # 下面这行非常关键！它能让我们像操作 Python 字典一样，通过字段名（如 row['username']）来获取数据
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row 
-    # 返回数据库连接对象
     return conn
 
 
@@ -89,16 +124,14 @@ def get_mock_info(tracking_number):
 @app.route('/api/config', methods=['GET'])
 def get_config():
     try:
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        config_path = os.path.join(base_dir, 'config.json')
-        if not os.path.exists(config_path):
+        if not os.path.exists(CONFIG_PATH):
             # 如果配置文件不存在，返回一个默认的配置，并写入文件
             default_config = {"maxShelf": 100, "maxLayer": 10, "maxTail": 9999}
-            with open(config_path, 'w', encoding='utf-8') as f:
+            with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
                 json.dump(default_config, f)
             return jsonify(default_config)
         
-        with open(config_path, 'r', encoding='utf-8') as f:
+        with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
             return jsonify(json.load(f))
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -107,9 +140,7 @@ def get_config():
 def update_config():
     try:
         data = request.get_json()
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        config_path = os.path.join(base_dir, 'config.json')
-        with open(config_path, 'w', encoding='utf-8') as f:
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
             json.dump(data, f)
         return jsonify({"success": True, "message": "配置已成功保存！"})
     except Exception as e:

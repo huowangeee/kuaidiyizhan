@@ -19,3 +19,14 @@ ENV/
 .idea/
 *.swp
 .DS_Store
+
+# Node.js 依赖
+node_modules/
+package-lock.json
+
+# 编译打包输出产物
+dist/
+backend-dist/
+build/
+*.spec
+config.json
